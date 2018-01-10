@@ -1,0 +1,422 @@
+Spark Standalone Cluster Configuration:
+
+Spark Worker – Cluster node which actually executes the task.
+Spark Master – The Spark Application Master is responsible for negotiating resource requests made by the driver with YARN and finding a suitable set of hosts/containers in which to run the Spark applications. There is one Application Master per application. i.e.management of resources - worker nodes.
+Spark Driver – The Spark driver is the process running the spark context (which represents the application session). This driver is responsible for converting the application to a directed graph of individual steps to execute on the cluster. There is one driver per application.Client application which ask for resources from spark master and executes task on worker nodes.
+Spark Executor: A single JVM instance on a node that serves a single Spark application. An executor runs multiple tasks over its lifetime, and multiple tasks concurrently. A node may have several Spark executors and there are many nodes running Spark Executors for each client application.
+
+There are three different types of cluster manager in Apache Spark
+  1.	Spark-Standalone – Spark workers are registered with spark master
+  2.	Yarn – Spark workers are registered with YARN Cluster manager.
+  3.	Mesos – Spark workers are registered with Mesos.
+
+Setting Up a Spark Standalone Cluster:
+
+1.	Setup a spark environment. Open /conf/spark-env.sh and input the following parameters:
+a.	export SPARK_WORKER_MEMORY=1g
+    export SPARK_EXECUTOR_MEMORY=512m
+    export SPARK_WORKER_INSTANCES=2
+    export SPARK_WORKER_CORES=2
+    export SPARK_WORKER_DIR=/home/sandeep.kd/work/sparkdata
+b.	SPARK_WORKER_MEMORY specifies the amount of memory you want to allocate for a worker node if this value is not given the default value is the total memory available – 1G. Since we are running everything in our local machine we woundt want the slave the use up all our memory.
+c.	SPARK_WORKER_INSTANCES specified the number of instances here its given as 2 since we will only create 2 slave nodes.
+d.	SPARK_WORKER_DIR will be the location that the run applications will run and which will include both logs and scratch space
+e.	SPARK_WORKER_CORE will specify the number of core which will be use by the worker
+f.	With the help of above configuration we make a cluster of 2 workers with 1GB each worker memory and every Worker use maximum 2 cores
+2.	After environment setup you should add the IP address and port of the slaves into the following conf file conf/slaves. When using the launch scripts this file is used to identify the host-names of the machine that the slave nodes will be running, Here we have standalone machine so we set localhost in slaves
+3.	Start master by following command : sbin/start-master.sh
+4.	Master runs on spark://<system-name>:7077. You can monitor the mater at localhost:8080
+5.	Start the worker for the Master using the command : sbin/start-slaves.sh <master-spark-URL> (in case of single-node cluster, use sbin/start-slave.sh)
+
+Initialize a Spark Context:
+
+val conf = new SparkConf().setMaster(local[2]).setAppName(dummySpark).set("spark.cores.max", "10")
+val sc = new SparkContext(conf)
+
+Initializing a SQLContext :- 
+val sqlContext: org.apache.spark.sql.hive.HiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
+
+Connection to Cassandra to load a table’s data:
+sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map("table" -> tableName, "keyspace" -> keySpace, "inferSchema" -> "true")).load()
+
+Connection to Oracle to load a table’s data:
+val oracleUrl = scala.collection.immutable.Map("url" -> "jdbc:oracle:thin:@dbligert.corp.apple.com:1700/ligert?user=liger_md_owner;password=ChgMeSoon20062017", "dbtable" -> "hr.employees")
+
+sqlContext.read.format("jdbc").option("url", "jdbc:oracle:thin:@dbligert.corp.apple.com:1700/ligert").option("dbtable", "schema.tablename").option("user", "liger_md_owner").option("password", "ChgMeSoon20062017").load()
+
+Create a dataFrame from File/Inbuilt data:
+
+val hiveContext: org.apache.spark.sql.hive.HiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
+
+val schemaStr=”emp_id\temp_name\temp_age\temp_loc”;
+val data = Array(“127694\tSandeep Kumar Das\t32\tOD”,”374658\tSandy\t33\tHR”); or // sc.textFile("data.txt")
+val distData = sc.parallelize(data)
+
+val dataSchema= StructType(schemaStr.split(“\t”).map(fieldName => StructField(fieldName, StringType, nullable = true)))
+val dataRDD=data.map(_.split(“\t”)).map(p => Row(p(0),p(1),p(2),p(3))
+
+val df= hiveContext.createDataFrame(dataRDD, dataSchema)
+
+Once created, the distributed dataset (distData) can be operated on in parallel. One important parameter for parallel collections is the number of partitions to cut the dataset into. Spark will run one task for each partition of the cluster. Typically you want 2-4 partitions for each CPU in your cluster.
+1 partition -> 1 task.
+
+Post 2.0.0, SparkContext was replaced by SparkSession. 
+Before Spark 2.0, the main programming interface of Spark was the Resilient Distributed Dataset (RDD). After Spark 2.0, RDDs are replaced by Dataset, which is strongly-typed like an RDD, but with richer optimizations under the hood.
+
+SparkSession provides a single point of entry to interact with underlying Spark functionality and allows programming Spark with DataFrame and Dataset APIs.
+
+val spark = SparkSession.builder()
+.appName("SparkSessionExample")
+.config("spark.sql.warehouse.dir", warehouseLocation)
+.enableHiveSupport()    
+.getOrCreate()
+
+Using a builder design pattern, it instantiates a SparkSession object if one does not already exist, along with its associated underlying contexts.
+
+//set new runtime options
+spark.conf.set("spark.sql.shuffle.partitions", 6)
+spark.conf.set("spark.executor.memory", "2g")
+//get all settings
+val configMap:Map[String, String] = spark.conf.getAll()
+
+Creating Datasets and Dataframes
+
+//create a Dataset using spark.range starting from 5 to 100, with increments of 5
+val numDS = spark.range(5, 100, 5)
+
+// reverse the order and display first 5 items
+numDS.orderBy(desc("id")).show(5)
+
+//compute descriptive stats and display them
+numDs.describe().show()
+
+// create a DataFrame using spark.createDataFrame from a List or Seq
+val langPercentDF = spark.createDataFrame(List(("Scala", 35), ("Python", 30), ("R", 15), ("Java", 20)))
+
+//rename the columns
+val lpDF = langPercentDF.withColumnRenamed("_1", "language").withColumnRenamed("_2", "percent")
+
+//order the DataFrame in descending order of percentage
+lpDF.orderBy(desc("percent")).show(false)
+
+
+
+
+
+
+Apache Spark RDD supports two types of Operations-
+•	Transformations
+•	Actions
+
+RDD Transformation
+Spark Transformation is a function that produces new RDD from the existing RDDs. It takes RDD as input and produces one or more RDD as output. Each time it creates new RDD when we apply any transformation. Thus, the input RDDs, cannot be changed since RDD are immutable in nature.
+Applying transformation, builts an RDD lineage, with the entire parent RDDs of the final RDD(s). RDD lineage, also known as RDD operator graph or RDD dependency graph. It is a logical execution plan i.e., it is Directed Acyclic Graph (DAG) of the entire parent RDDs of RDD.
+Transformations are lazy in nature i.e., they get executed when we call an action. They are not executed immediately. Two most basic type of transformations is a map(), filter().
+After the transformation, the resultant RDD is always different from its parent RDD. It can be smaller (e.g. filter, count, distinct, sample), bigger (e.g. flatMap(), union(), Cartesian()) or the same size (e.g. map).
+There are two types of transformations:
+•	Narrow transformation – In Narrow transformation, all the elements that are required to compute the records in single partition live in the single partition of parent RDD. A limited subset of partition is used to calculate the result. Narrow transformations are the result of map(), filter().
+Examples: Map, FlatMap, MapPartition,Filter, Sample, Union
+•	Wide transformation – In wide transformation, all the elements that are required to compute the records in the single partition may live in many partitions of parent RDD. The partition may live in many partitions of parent RDD. Wide transformations are the result of groupbyKey() and reducebyKey().
+Examples: Intersection, Distinct, GroupByKey, ReduceByKey, Join, Coalesce, Repartition, Cartesian.
+There are various functions in RDD transformation. Let us see RDD transformation with examples.
+
+1.map(func)
+The map function iterates over every line in RDD and split into new RDD. Using map() transformation we take in any function, and that function is applied to every element of RDD.
+In the map, we have the flexibility that the input and the return type of RDD may differ from each other. For example, we can have input RDD type as String, after applying the map() function the return RDD can be Boolean.
+For example, in RDD {1, 2, 3, 4, 5} if we apply “rdd.map(x=>x+2)” we will get the result as (3, 4, 5, 6, 7).
+Map() example:
+
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+object  mapTest{
+def main(args: Array[String]) = {
+val spark = SparkSession.builder.appName("mapExample").master("local").getOrCreate()
+val data = spark.read.textFile("spark_test.txt").rdd
+val mapFile = data.map(line => (line,line.length))mapFile.foreach(println)
+}
+}
+
+•	Note – In above code, map() function map each line of the file with its length.
+
+
+2.flatMap()
+With the help of flatMap() function, to each input element, we have many elements in an output RDD. The most simple use of flatMap() is to split each input string into words.
+Map and flatMap are similar in the way that they take a line from input RDD and apply a function on that line. The key difference between map() and flatMap() is map() returns only one element, while flatMap() can return a list of elements.
+flatMap() example:
+
+val data = spark.read.textFile("spark_test.txt").rdd
+val flatmapFile = data.flatMap(lines => lines.split(" "))
+flatmapFile.foreach(println)
+
+•	Note – In above code, flatMap() function splits each line when space occurs.
+
+3.filter(func)
+Spark RDD filter() function returns a new RDD, containing only the elements that meet a predicate. It is a narrow operation because it does not shuffle data from one partition to many partitions.
+For example, Suppose RDD contains first five natural numbers (1, 2, 3, 4, and 5) and the predicate is check for an even number. The resulting RDD after the filter will contain only the even numbers i.e., 2 and 4.
+Filter() example:
+
+val data = spark.read.textFile("spark_test.txt").rdd
+val mapFile = data.flatMap(lines => lines.split(" ")).filter(value => value=="spark")
+println(mapFile.count())
+•	Note – In above code, flatMap function map line into words and then count the word “Spark” using count() Action after filtering lines containing “Spark” from mapFile.
+
+4.mapPartitions(func)
+The MapPartition converts each partition of the source RDD into many elements of the result (possibly none). In mapPartition(), the map() function is applied on each partitions simultaneously. MapPartition is like a map, but the difference is it runs separately on each partition(block) of the RDD.
+
+5.mapPartitionWithIndex()
+It is like mapPartition; Besides mapPartition it provides func with an integer value representing the index of the partition, and the map() is applied on partition index wise one after the other.
+
+6.union(dataset)
+With the union() function, we get the elements of both the RDD in new RDD. The key rule of this function is that the two RDDs should be of the same type.
+For example, the elements of RDD1 are (Spark, Spark, Hadoop, Flink) and that ofRDD2 are (Big data, Spark, Flink) so the resultant rdd1.union(rdd2) will have elements (Spark, Spark, Spark, Hadoop, Flink, Flink, Big data).
+Union() example:
+
+val rdd1 = spark.sparkContext.parallelize(Seq((1,"jan",2016),(3,"nov",2014),(16,"feb",2014)))
+val rdd2 = spark.sparkContext.parallelize(Seq((5,"dec",2014),(17,"sep",2015)))
+val rdd3 = spark.sparkContext.parallelize(Seq((6,"dec",2011),(16,"may",2015)))
+val rddUnion = rdd1.union(rdd2).union(rdd3)
+rddUnion.foreach(Println)
+•	Note – In above code union() operation will return a new dataset that contains the union of the elements in the source dataset (rdd1) and the argument (rdd2 & rdd3).
+
+7.intersection(other-dataset)
+With the intersection() function, we get only the common element of both the RDD in new RDD. The key rule of this function is that the two RDDs should be of the same type.
+Consider an example, the elements of RDD1 are (Spark, Spark, Hadoop, Flink) and that of RDD2 are (Big data, Spark, Flink) so the resultant rdd1.intersection(rdd2)will have elements (spark).
+Intersection() example:
+
+val rdd1 = spark.sparkContext.parallelize(Seq((1,"jan",2016),(3,"nov",2014, (16,"feb",2014)))
+val rdd2 = spark.sparkContext.parallelize(Seq((5,"dec",2014),(1,"jan",2016)))
+val comman = rdd1.intersection(rdd2)
+comman.foreach(Println)
+•	Note – The intersection() operation return a new RDD. It contains the intersection of elements in the rdd1 & rdd2.
+
+8.distinct()
+It returns a new dataset that contains the distinct elements of the source dataset. It is helpful to remove duplicate data.
+For example, if RDD has elements (Spark, Spark, Hadoop, Flink), then rdd.distinct()will give elements (Spark, Hadoop, Flink).
+Distinct() example:
+
+val rdd1 = spark.sparkContext.parallelize(Seq((1,"jan",2016),(3,"nov",2014),(16,"feb",2014),(3,"nov",2014)))
+val result = rdd1.distinct() 
+println(result.collect().mkString(", "))
+
+(3,nov,2014),(16,feb,2014),(1,jan,2016)	
+•	Note – In the above example, the distinct function will remove the duplicate record i.e. (3,'”nov”,2014).
+
+9.groupByKey()
+When we use groupByKey() on a dataset of (K, V) pairs, the data is shuffled according to the key value K in another RDD. In this transformation, lots of unnecessary data get to transfer over the network.
+Spark provides the provision to save data to disk when there is more data shuffled onto a single executor machine than can fit in memory. Follow this link to learn about RDD Caching and Persistence mechanism in detail.
+groupByKey() example:
+
+val data = spark.sparkContext.parallelize(Array(('k',5),('s',3),('s',4),('p',7),('p',5),('t',8),('k',6)),3)
+val group = data.groupByKey().collect()
+group.foreach(println)
+
+scala> group.foreach(println)
+(s,CompactBuffer(3,4))
+(p,CompactBuffer(7,5))
+(t,CompactBuffer(8))
+(k,CompactBuffer(5,6))
+	
+•	Note – The groupByKey() will group the integers on the basis of same key(alphabet). After that collect() action will return all the elements of the dataset as an Array.
+
+10. reduceByKey(func, [numTasks])
+When we use reduceByKey on a dataset (K, V), the pairs on the same machine with the same key are combined, before the data is shuffled.
+reduceByKey() example:
+
+val words = Array("one","two","two","four","five","six","six","eight","nine","ten")
+val data = spark.sparkContext.parallelize(words).map(w => (w,1)).reduceByKey(_+_)
+data.foreach(println)
+
+(ten,1)
+(two,2)
+(one,1)
+(nine,1)
+(six,2)
+(five,1)
+(four,1)	
+•	Note – The above code will parallelize the Array of String. It will then map each word with count 1, then reduceByKey will merge the count of values having the similar key.
+
+11.sortByKey()
+When we apply the sortByKey() function on a dataset of (K, V) pairs, the data is sorted according to the key K in another RDD.
+sortByKey() example:
+
+val data = spark.sparkContext.parallelize(Seq(("maths",52), ("english",75), ("science",82), ("computer",65), ("maths",85)))
+val sorted = data.sortByKey()
+sorted.foreach(println)
+•	Note – In above code, sortByKey() transformation sort the data RDD into Ascending order of the Key(String).
+
+12.join()
+The Join is database term. It combines the fields from two table using common values. join() operation in Spark is defined on pair-wise RDD. Pair-wise RDDs are RDD in which each element is in the form of tuples. Where the first element is key and the second element is the value.
+The boon of using keyed data is that we can combine the data together. The join() operation combines two data sets on the basis of the key.
+Join() example:
+
+val data = spark.sparkContext.parallelize(Array(('A',1),('b',2),('c',3)))
+val data2 =spark.sparkContext.parallelize(Array(('A',4),('A',6),('b',7),('c',3),('c',8)))
+val result = data.join(data2)
+println(result.collect().mkString(","))
+
+(b,(2,7)),(A,(1,4)),(A,(1,6)),(c,(3,3)),(c,(3,8))	
+•	Note –  The join() transformation will join two different RDDs on the basis of Key.
+
+13. coalesce()
+To avoid full shuffling of data we use coalesce() function. In coalesce() we use existing partition so that less data is shuffled. Using this we can cut the number of the partition. Suppose, we have four nodes and we want only two nodes. Then the data of extra nodes will be kept onto nodes which we kept.
+Coalesce() example:
+1
+2
+3	val rdd1 = spark.sparkContext.parallelize(Array("jan","feb","mar","april","may","jun"),3)
+val result = rdd1.coalesce(2)
+result.foreach(println)
+•	Note – The coalesce will decrease the number of partitions of the source RDD to numPartitions define in coalesce argument.
+
+RDD Action
+Transformations create RDDs from each other, but when we want to work with the actual dataset, at that point action is performed. When the action is triggered after the result, new RDD is not formed like transformation. Thus, Actions are Spark RDD operations that give non-RDD values. The values of action are stored to drivers or to the external storage system. It brings laziness of RDD into motion.
+An action is one of the ways of sending data from Executer to the driver. Executors are agents that are responsible for executing a task. While the driver is a JVM process that coordinates workers and execution of the task. Some of the actions of Spark are:
+
+1.count()
+Action count() returns the number of elements in RDD.
+For example, RDD has values {1, 2, 2, 3, 4, 5, 5, 6} in this RDD “rdd.count()” will give the result 8.
+Count() example:
+
+val data = spark.read.textFile("spark_test.txt").rdd
+val mapFile = data.flatMap(lines => lines.split(" ")).filter(value => value=="spark")
+println(mapFile.count())
+•	Note – In above code flatMap() function maps line into words and count the word “Spark” using count() Action after filtering lines containing “Spark” from mapFile.
+
+2.collect()
+The action collect() is the common and simplest operation that returns our entire RDDs content to driver program. The application of collect() is unit testing where the entire RDD is expected to fit in memory. As a result, it makes easy to compare the result of RDD with the expected result.
+Action Collect() had a constraint that all the data should fit in the machine, and copies to the driver.
+Collect() example:
+
+val data = spark.sparkContext.parallelize(Array(('A',1),('b',2),('c',3)))
+val data2 =spark.sparkContext.parallelize(Array(('A',4),('A',6),('b',7),('c',3),('c',8)))
+val result = data.join(data2)
+println(result.collect().mkString(","))
+•	Note – join() transformation in above code will join two RDDs on the basis of same key(alphabet). After that collect() action will return all the elements to the dataset as an Array.
+
+3.take(n)
+The action take(n) returns n number of elements from RDD. It tries to cut the number of partition it accesses, so it represents a biased collection. We cannot presume the order of the elements.
+For example, consider RDD {1, 2, 2, 3, 4, 5, 5, 6} in this RDD “take (4)” will give result { 2, 2, 3, 4}
+Take() example:
+
+val data = spark.sparkContext.parallelize(Array(('k',5),('s',3),('s',4),('p',7),('p',5),('t',8),('k',6)),3)
+val group = data.groupByKey().collect()
+val twoRec = result.take(2)
+twoRec.foreach(println)
+•	Note – The take(2) Action will return an array with the first n elements of the data set defined in the taking argument.
+
+4.top()
+If ordering is present in our RDD, then we can extract top elements from our RDD using top(). Action top() use default ordering of data.
+Top() example:
+
+val data = spark.read.textFile("spark_test.txt").rdd
+val mapFile = data.map(line => (line,line.length))
+val res = mapFile.top(3)
+res.foreach(println)
+•	Note – map() operation will map each line with its length. And top(3) will return 3 records from mapFile with default ordering.
+
+5.countByValue()
+The countByValue() returns, many times each element occur in RDD.
+For example, RDD has values {1, 2, 2, 3, 4, 5, 5, 6} in this RDD “rdd.countByValue()”  will give the result {(1,1), (2,2), (3,1), (4,1), (5,2), (6,1)}
+countByValue() example:
+
+val data = spark.read.textFile("spark_test.txt").rdd
+val result= data.map(line => (line,line.length)).countByValue()
+result.foreach(println)
+•	Note – The countByValue() action will return a hashmap of (K, Int) pairs with the count of each key.
+
+6.reduce()
+The reduce() function takes the two elements as input from the RDD and then produces the output of the same type as that of the input elements. The simple forms of such function are an addition. We can add the elements of RDD, count the number of words. It accepts commutative and associative operations as an argument.
+Reduce() example:
+
+val rdd1 = spark.sparkContext.parallelize(List(20,32,45,62,8,5))
+val sum = rdd1.reduce(_+_)
+println(sum)
+•	Note – The reduce() action in above code will add the elements of the source RDD.
+
+7.fold()
+The signature of the fold() is like reduce(). Besides, it takes “zero value” as input, which is used for the initial call on each partition. But, the condition with zero value is that it should be the identity element of that operation. The key difference between fold() and reduce() is that, reduce() throws an exception for empty collection, but fold() is defined for empty collection.
+For example, zero is an identity for addition; one is identity element for multiplication. The return type of fold() is same as that of the element of RDD we are operating on.
+For example, rdd.fold(0)((x, y) => x + y).
+Fold() example:
+
+val rdd1 = spark.sparkContext.parallelize(List(("maths", 80),("science", 90)))
+val additionalMarks = ("extra", 4)
+val sum = rdd1.fold(additionalMarks){ (acc, marks) => val add = acc._2 + marks._2
+("total", add)
+}
+println(sum)
+•	Note – In above code additionalMarks is an initial value. This value will be added to the int value of each record in the source RDD.
+
+8.aggregate()
+It gives us the flexibility to get data type different from the input type. The aggregate() takes two functions to get the final result. Through one function we combine the element from our RDD with the accumulator, and the second, to combine the accumulator. Hence, in aggregate, we supply the initial zero value of the type which we want to return.
+
+9.foreach()
+When we have a situation where we want to apply operation on each element of RDD, but it should not return value to the driver. In this case, foreach() function is useful. For example, inserting a record into the database.
+Foreach() example:
+
+val data = spark.sparkContext.parallelize(Array(('k',5),('s',3),('s',4),('p',7),('p',5),('t',8),('k',6)),3)
+val group = data.groupByKey().collect()
+group.foreach(println)
+•	Note – The foreach() action run a function (println) on each element of the dataset group.
+
+Method Formats in Scala/Spark:
+
+def method_name(variable_name1: [Type1], variable_name2: [Type2]) : [ReturnType] = {
+...
+...
+retVal
+}
+
+val variable_name = (variable_name1: [Type1], variable_name2: [Type2]) => {
+...
+...
+retVal
+}
+
+val method_name = sparkContext.udf.register(“method_name”,(variable_name1: [Type1], variable_name2: [Type2])) => {
+...
+...
+retVal
+}
+
+val method_name: ((Input_Type1, Input_Type2) => Output_Type) = (variable_name1: [Input_Type1], variable_name2: [Input_Type2]) => {
+...
+...
+retVal
+}
+
+
+
+What is a partition in Spark?
+
+Resilient Distributed Datasets are collection of various data items that are so huge in size, that they cannot fit into a single node and have to be partitioned across various nodes. Spark automatically partitions RDDs and distributes the partitions across different nodes. A partition in spark is an atomic chunk of data (logical division of data) stored on a node in the cluster. Partitions are basic units of parallelism in Apache Spark. RDDs in Apache Spark are collection of partitions.
+
+Creating a Partition in Spark
+integer_RDD = sc.parallelize (range (10), 3)
+
+Characteristics of Partitions in Apache Spark
+•	Every machine in a spark cluster contains one or more partitions.
+•	The number of partitions in spark are configurable and having too few or too many partitions is not good.
+•	A single partition in Spark do not span multiple machines.
+
+Partitioning in Apache Spark
+One important way to increase parallelism of spark processing is to increase the number of executors on the cluster. Apache Spark manages data through RDDs using partitions which help parallelize distributed data processing with negligible network traffic for sending data between executors. By default, Apache Spark reads data into an RDD from the nodes that are close to it.
+In apache spark, by default a partition is created for every HDFS partition of size 64MB. RDDs are automatically partitioned in spark without human intervention.
+
+How many partitions should a Spark RDD have?
+ Having too large a number of partitions or too few - is not an ideal solution. The number of partitions in spark should be decided thoughtfully based on the cluster configuration and requirements of the application. Increasing the number of partitions will make each partition have less data or no data at all. Apache Spark can run a single concurrent task for every partition of an RDD, up to the total number of cores in the cluster. If a cluster has 30 cores then programmers want their RDDs to have 30 cores at the very least or maybe 2 or 3 times of that.
+As already mentioned above, one partition is created for each block of the file in HDFS which is of size 64MB.However, when creating a RDD a second argument can be passed that defines the number of partitions to be created for an RDD.
+val rdd= sc.textFile (“file.txt”, 5)
+The above line of code will create an RDD named textFile with 5 partitions. Suppose that you have a cluster with four cores and assume that each partition needs to process for 5 minutes. In case of the above RDD with 5 partitions, 4 partition processes will run in parallel as there are four cores and the 5th partition process will process after 5 minutes when one of the 4 cores, is free. The entire processing will be completed in 10 minutes and during the 5th partition process, the resources (remaining 3 cores) will remain idle. The best way to decide on the number of partitions in an RDD is to make the number of partitions equal to the number of cores in the cluster so that all the partitions will process in parallel and the resources will be utilized in an optimal way.
+
+Scala> rdd.partitions.size
+Output = 5
+Types of Partitioning in Apache Spark
+1.	Hash Partitioning in Spark
+2.	Range Partitioning in Spark
+Hash Partitioning in Spark
+Hash Partitioning attempts to spread the data evenly across various partitions based on the key. Object.hashCode method is used to determine the partition in Spark as partition = key.hashCode () % numPartitions.
+Range Partitioning in Spark
+Some Spark RDDs have keys that follow a particular ordering, for such RDDs, range partitioning is an efficient partitioning technique. In range partitioning method, tuples having keys within the same range will appear on the same machine. Keys in a range partitioner are partitioned based on the set of sorted range of keys and ordering of keys.
+
+

@@ -1,14 +1,27 @@
+What is Spark?
+
+From the official Apache Spark Page, below are the facts about Spark.
+Apache Spark is a fast and general engine for large-scale distributed data processing.
+
+Following attributes make Spark a more preferable data processing technology than others: 
+1.	Speed : It can process data 100 times faster than Hadoop Map Reduce with its in-memory mechanish and can even reach upto 10 times processing speed for disk processing. This strength is attributed to its advanced DAG execution engine that supports acyclic data flow and in-memory computing.
+2.	Ease of Use : Spark support varied languages at a high level write Spark Applications to process the data. It supports Java, Scala, Python and R. You can even use it interactively by using the respective shells. 
+3.	Built-in Libraries : Spark has couple of built-in libraries which can be combinedly used in the same application.
+4.	Support for different Cluster Managers and Data Sources : You can configure Spark in Standalone mode, Apache Mesos and Hadoop YARN. It also has support for varied data sources from where it can pull data and process like Oracle, Hadoop, Cassandra, JSON etc.
+
+There are three different types of cluster manager in Apache Spark
+  1.	Spark-Standalone – Spark workers are registered with spark master
+  2.	Yarn – Spark workers are registered with YARN Cluster manager.
+  3.	Mesos – Spark workers are registered with Mesos.
+You can also run Spark locally on multiple cores by passing local[n] as the master URL where N is the number of parallel threads you want to be spawned. 
+
+
 Spark Standalone Cluster Configuration:
 
 Spark Worker – Cluster node which actually executes the task.
 Spark Master – The Spark Application Master is responsible for negotiating resource requests made by the driver with YARN and finding a suitable set of hosts/containers in which to run the Spark applications. There is one Application Master per application. i.e.management of resources - worker nodes.
 Spark Driver – The Spark driver is the process running the spark context (which represents the application session). This driver is responsible for converting the application to a directed graph of individual steps to execute on the cluster. There is one driver per application.Client application which ask for resources from spark master and executes task on worker nodes.
 Spark Executor: A single JVM instance on a node that serves a single Spark application. An executor runs multiple tasks over its lifetime, and multiple tasks concurrently. A node may have several Spark executors and there are many nodes running Spark Executors for each client application.
-
-There are three different types of cluster manager in Apache Spark
-  1.	Spark-Standalone – Spark workers are registered with spark master
-  2.	Yarn – Spark workers are registered with YARN Cluster manager.
-  3.	Mesos – Spark workers are registered with Mesos.
 
 Setting Up a Spark Standalone Cluster:
 

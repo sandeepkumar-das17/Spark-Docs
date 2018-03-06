@@ -31,7 +31,9 @@ Spark can run of its own or over existing cluster. Currently it supports the bel
 -        Apache Mesos
 -        Hadoop YARN
  
-You can also run Spark locally on multiple cores by passing local[n] as the master URL where N is the number of parallel threads you want to be spawned.
+You can also run Spark locally on multiple cores by passing local[n] as the master URL.
+
+where N -> the number of parallel worker threads you want to be spawned. Ideally it should be equal to or less than the number of cores your machine has.
  
 
 Spark Architecture
@@ -57,10 +59,10 @@ Setting Up a Spark Standalone Cluster:
  
 1.      Setup a spark environment. Open /conf/spark-env.sh and input the following parameters:
 a.      export SPARK_WORKER_MEMORY=1g
-export SPARK_EXECUTOR_MEMORY=512m
-export SPARK_WORKER_INSTANCES=2
-export SPARK_WORKER_CORES=2
-export SPARK_WORKER_DIR=/home/sandeep.kd/work/sparkdata
+	export SPARK_EXECUTOR_MEMORY=512m
+	export SPARK_WORKER_INSTANCES=2
+	export SPARK_WORKER_CORES=2
+	export SPARK_WORKER_DIR=/home/sandeep.kd/work/sparkdata
 b.      SPARK_WORKER_MEMORY specifies the amount of memory you want to allocate for a worker node if this value is not given the default value is the total memory available – 1G. Since we are running everything in our local machine we woundt want the slave the use up all our memory.
 c.      SPARK_WORKER_INSTANCES specified the number of instances here its given as 2 since we will only create 2 slave nodes.
 d.      SPARK_WORKER_DIR will be the location that the run applications will run and which will include both logs and scratch space

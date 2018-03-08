@@ -34,20 +34,20 @@ Cluster Managers for Spark
 ===========================
 
 Spark can run of its own or over existing cluster. Currently it supports the below cluster managers:
--        Spark Standalone
--        Apache Mesos
--        Hadoop YARN
+1.      Spark-Standalone 	– Spark workers are registered with spark master
+2.      Yarn 			– Spark workers are registered with YARN Cluster manager.
+3.      Mesos 			– Spark workers are registered with Mesos.
  
 You can also run Spark locally on multiple cores by passing local[n] as the master URL.
 
 where N -> the number of parallel worker threads you want to be spawned. Ideally it should be equal to or less than the number of cores your machine has.
  
-==================
-Spark Architecture
-==================
+==============================
+Spark Architecture/ Components
+==============================
 
 Spark Standalone Cluster Configuration
-
+--------------------------------------
 Spark Worker – Cluster node which actually executes the task.
 Spark Master – The Spark Application Master is responsible for negotiating resource requests made by the driver with YARN and finding a suitable set of hosts/containers in which to run the Spark applications. There is one Application Master per application. i.e.management of resources - worker nodes.
 Spark Driver – The Spark driver is the process running the spark context (which represents the application session). This driver is responsible for converting the application to a directed graph of individual steps to execute on the cluster. There is one driver per application.Client application which ask for resources from spark master and executes task on worker nodes.
@@ -57,13 +57,9 @@ Spark Executor: A single JVM instance on a node that serves a single Spark appli
 					->1 Core -> 1Task -> 1Partition
 					->1 Core -> 1Task -> 1Partition
  
-There are three different types of cluster manager in Apache Spark
-1.      Spark-Standalone – Spark workers are registered with spark master
-2.      Yarn – Spark workers are registered with YARN Cluster manager.
-3.      Mesos – Spark workers are registered with Mesos.
- 
+
 Setting Up a Spark Standalone Cluster:
- 
+-------------------------------------- 
 1.      Setup a spark environment. Open /conf/spark-env.sh and input the following parameters:
 a.      export SPARK_WORKER_MEMORY=1g
 	export SPARK_EXECUTOR_MEMORY=512m
@@ -79,6 +75,21 @@ f.      With the help of above configuration we make a cluster of 2 workers with
 3.      Start master by following command : sbin/start-master.sh
 4.      Master runs on spark://<system-name>:7077. You can monitor the mater at localhost:8080
 5.      Start the worker for the Master using the command : sbin/start-slaves.sh <master-spark-URL> (in case of single-node cluster, use sbin/start-slave.sh)
+
+Submitting Applications Using spark-submit
+------------------------------------------
+Once a user program has been built and Jar has been created of it, it can be submitted to the Spark Cluster using the spark-submit script. 
+
+./bin/spark-submit --num-executors <m> --executor-cores <n> --class <main-class> --master <master-url> --deploy-mode <deploy-mode> --conf <key>=<value> <application-jar> [application-arguments]
+
+Example:
+$SPARK_HOME/bin/spark-submit --num-executors 4 --executor-cores 2 --class com.sandeep.examples.firstSpark --master spark://SANDEEP-PC:7077 --properties-file ./application.conf ./build/libs/SparkDemo.jar
+
+--deploy-mode : 
+[From Apache Spark Official Site]
+A common deployment strategy is to submit your application from a gateway machine that is physically co-located with your worker machines (e.g. Master node in a standalone EC2 cluster). In this setup, client mode is appropriate. In client mode, the driver is launched directly within the spark-submit process which acts as a client to the cluster. The input and output of the application is attached to the console. Thus, this mode is especially suitable for applications that involve the REPL (e.g. Spark shell).
+
+Alternatively, if your application is submitted from a machine far from the worker machines (e.g. locally on your laptop), it is common to use cluster mode to minimize network latency between the drivers and the executors. Currently, the standalone mode does not support cluster mode for Python applications.
 
 ==================
 How Spark Works ?

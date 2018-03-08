@@ -1,5 +1,7 @@
+==================
 A Brief Background
- 
+==================
+
 ·   	With the growing interest of Organizations on capturing data generated from their businesses and further using it to deliver crucial business strategies, Big Data has become an integral part of most of the large Organizations.
 ·   	They analyze and engineer this data to formulate important business decisions.
 ·   	The existing infra, storage and processing logic, didn’t suffice the purpose.
@@ -7,14 +9,17 @@ A Brief Background
 ·   	Hence Hadoop came. Hadoop is encapsulates a wide range of technologies which function on the distributed storage and processing framework. Couple of technologies are – Map Reduce, HDFS, Hive, Pig, Hbase, Oozie.
 ·   	Hadoop’s Map Reduce framework is capable of processing Terabytes of data over the distributed network on multiple nodes. It reduces the data transfer over the network by sending the processing logic to the nodes where the data is present.
  
+=================================== 
 Limitations to Map Reduce Framework
- 
-·   	Though MR is able to process huge sizes of data and still is a preffered technology in Big Data area, it’s latency and response time has plagues it’s performance when the data analysis is needed to be done a little faster.
+===================================
+
+·   	Though MR is able to process huge sizes of data and still is a preffered technology in Big Data area, it’s latency and response time has plagued it’s performance when the data analysis is needed to be done a little faster.
 ·   	It also primarily serves the purpose for batch processing whereas real-time or near real-time processing is still a far off achievement to happen.
 ·   	In complex processing scenarios where Map Reduce needs to use the intermediate data from the previous data operation, it has to read it from the persistent storage i.e. HDD, as Marp Reduce writes the intermediate data to the persistent storage. The data read time considerably increases compared to the processing time if you have multiple reads for intermediate data.
- 
+
+==============
 What is Spark?
- 
+============== 
 From the official Apache Spark Page, below are the facts about Spark.
 Apache Spark is a fast and general engine for large-scale distributed data processing.
  
@@ -23,9 +28,11 @@ Following attributes make Spark a more preferable data processing technology tha
 2.      Ease of Use : Spark support varied languages at a high level write Spark Applications to process the data. It supports Java, Scala, Python and R. You can even use it interactively by using the respective shells.
 3.      Built-in Libraries : Spark has couple of built-in libraries which can be combinedly used in the same application.
 4.      Support for different Cluster Managers and Data Sources : You can configure Spark in Standalone mode, Apache Mesos and Hadoop YARN. It also has support for varied data sources from where it can pull data and process like Oracle, Hadoop, Cassandra, JSON etc.
- 
+
+===========================
 Cluster Managers for Spark
- 
+===========================
+
 Spark can run of its own or over existing cluster. Currently it supports the below cluster managers:
 -        Spark Standalone
 -        Apache Mesos
@@ -35,20 +42,20 @@ You can also run Spark locally on multiple cores by passing local[n] as the mast
 
 where N -> the number of parallel worker threads you want to be spawned. Ideally it should be equal to or less than the number of cores your machine has.
  
-
+==================
 Spark Architecture
- 
- 
+==================
+
 Spark Standalone Cluster Configuration
- 
+
 Spark Worker – Cluster node which actually executes the task.
 Spark Master – The Spark Application Master is responsible for negotiating resource requests made by the driver with YARN and finding a suitable set of hosts/containers in which to run the Spark applications. There is one Application Master per application. i.e.management of resources - worker nodes.
 Spark Driver – The Spark driver is the process running the spark context (which represents the application session). This driver is responsible for converting the application to a directed graph of individual steps to execute on the cluster. There is one driver per application.Client application which ask for resources from spark master and executes task on worker nodes.
 Spark Executor: A single JVM instance on a node that serves a single Spark application. An executor runs multiple tasks over its lifetime, and multiple tasks concurrently. A node may have several Spark executors and there are many nodes running Spark Executors for each client application.
-1JVM -> 1Executor....threads....->1 Core -> 1Task -> 1Partition
-				->1 Core -> 1Task -> 1Partition
-				->1 Core -> 1Task -> 1Partition
-				->1 Core -> 1Task -> 1Partition
+1JVM -> 1Executor....multiple threads...->1 Core -> 1Task -> 1Partition
+					->1 Core -> 1Task -> 1Partition
+					->1 Core -> 1Task -> 1Partition
+					->1 Core -> 1Task -> 1Partition
  
 There are three different types of cluster manager in Apache Spark
 1.      Spark-Standalone – Spark workers are registered with spark master
@@ -72,9 +79,22 @@ f.      With the help of above configuration we make a cluster of 2 workers with
 3.      Start master by following command : sbin/start-master.sh
 4.      Master runs on spark://<system-name>:7077. You can monitor the mater at localhost:8080
 5.      Start the worker for the Master using the command : sbin/start-slaves.sh <master-spark-URL> (in case of single-node cluster, use sbin/start-slave.sh)
- 
+
+==================
+How Spark Works ?
+==================
+- When you submit your program, using the spark-submit script, to the Spark Cluster, the main() method in the program is invoked. 
+- The SparkContext in the main() method is initialized which launches the Driver program.  creates a job when the first Action is encountered. 
+- The Driver program requests for the resources from the Cluster Manager required to launch the executors.
+- Cluster Manager launches the executors on the behalf of the Driver program.
+- The Driver program with the help of the DAG scheduler creates an Operator Graph based on the actions and transformation on RDDs, and then submits the same to the Task Scheduler.
+- Task Scheduler launches the task via cluster manager on each executor node. 
+- The executors process the task and the result is sent back to the driver through cluster manager.
+
+===========================
 Initialize a Spark Context:
- 
+===========================
+
 val conf = new SparkConf().setMaster(local[2]).setAppName(dummySpark).set("spark.cores.max", "10")
 val sc = new SparkContext(conf)
  
